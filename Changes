@@ -8,3 +8,10 @@ Revision history for Perl6-Subs
 	Add "HACKING" document.
 	Change license to LGPL.
 
+0.03	03/28/2005
+	Support new parameter types Rule and IO:
+	  a Rule is a Regexp object (qr//).
+	  an IO is an IO handle (*STDOUT{IO}), or a glob, or a glob reference.
+	Document that C<is copy> is the default.
+	Separate rules for parameter and sub traits (the latter are more relaxed).
+	More carefully set debugging for Parse::RecDescent usage.

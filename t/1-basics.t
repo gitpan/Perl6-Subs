@@ -1,13 +1,11 @@
 #!/usr/bin/perl -w
-# $Id: 1-basics.t,v 1.3 2005/03/24 23:14:07 chip Exp $
+# $Id: 1-basics.t,v 1.5 2005/03/28 18:43:26 chip Exp $
 
-use Test::More tests => 14;
+use Test::More tests => 17;
 
 use strict;
 use warnings;
 use blib;
-
-BEGIN { $::RD_TRACE++ if $ENV{PERL6_SUBS_DEBUG} }
 
 use Perl6::Subs;
 
@@ -18,6 +16,7 @@ pass("used");
 sub foo ( $a of Int where { my $x = $_; $x > 0 },
 	  Int $b,
 	  Int ?$c )
+  returns(List)
 {
     ($a, $b, $c)
 }
@@ -32,7 +31,7 @@ like $@, qr/\$a failed where/;
 
 #----------------------------------------------------------------
 
-sub Foo::thing ( $me: +$a is required, +$b, *%more ) : method {
+sub Foo::thing ( $me: +$a is required, +$b, *%more ) : method, returns(Any) {
     $a || $b || $more{c};
 }
 
@@ -40,10 +39,16 @@ is +Foo->thing( a => 1         ), 1, "thing(a=>1)";
 is +Foo->thing( a => 0, b => 2 ), 2, "thing(b=>2)";
 is +Foo->thing( a => 3, c => 4 ), 3, "thing(a=>3,c=>4)";
 
-ok +( eval { +Foo->thing( b => 5, c => 6 ) }, $@ );
+ok   +( eval { +Foo->thing( b => 5, c => 6 ) }, $@ );
 like $@, qr/required named parameter 'a'/;
 
 #----------------------------------------------------------------
+
+sub match ( Rule $r, *@_ ) { grep /$r/, @_ }
+
+ok   eq_array([match qr/\d/, qw(1 a 2 b 3)], [qw(1 2 3)]);
+ok   +( eval { match 0 }, $@ );
+like $@, qr/\$r is not a Rule/;
 
 #----------------------------------------------------------------
 

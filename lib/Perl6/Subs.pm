@@ -1,4 +1,4 @@
-# $Id: Subs.pm,v 1.5 2005/03/24 23:12:29 chip Exp $
+# $Id: Subs.pm,v 1.8 2005/03/28 18:48:56 chip Exp $
 
 package Perl6::Subs;
 
@@ -8,11 +8,11 @@ Perl6::Subs - Define your subroutines in the Perl 6 style
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use strict;
 use warnings;
@@ -32,8 +32,6 @@ use Carp ();
 #
 
 our $DEBUG ||= $ENV{PERL6_SUBS_DEBUG};
-$::RD_TRACE ||= $ENV{PERL6_SUBS_RD_TRACE};  # FIXME
-$::RD_HINT  ||= $ENV{PERL6_SUBS_RD_HINT};   # FIXME
 
 
 #----------------------------------------------------------------
@@ -68,6 +66,8 @@ sub _inside {
 
     my %BASIC_TYPE;
     {
+	my $reftype = 'Scalar::Util::reftype';
+
 	my %t = (
 		 # catch-all
 		 Any	=> {},
@@ -88,20 +88,38 @@ sub _inside {
 		 bool	=> { base => 'Bool', mustdef => 1 },
 
 		 # aggregates
-		 Array	=> { qual => q{ Scalar::Util::reftype(_VAL_) eq 'ARRAY' } },
-		 Hash	=> { qual => q{ Scalar::Util::reftype(_VAL_) eq 'HASH'  } },
+		 Array	=> { qual => qq{ $reftype(_VAL_) eq 'ARRAY'  } },
+		 Hash	=> { qual => qq{ $reftype(_VAL_) eq 'HASH'   } },
 
 		 # runnables
-		 Code	=> { qual => q{ Scalar::Util::reftype(_VAL_) eq 'CODE'  } },
+		 Code	=> { qual => qq{ $reftype(_VAL_) eq 'CODE'   } },
 
-		 # globs - not really Perl 6
-		 Glob	=> { qual => q{ Scalar::Util::reftype(\_VAL_) eq 'GLOB' } },
-		 GlobRef=> { qual => q{ Scalar::Util::reftype(_VAL_)  eq 'GLOB' } },
+		 # etc.
+		 Rule   => { qual => qq{ ref(_VAL_) eq 'Regexp'      } },
+		 IO	=> { qual =>
+				qq{ (   $reftype(_VAL_)  eq 'IO'
+				     || $reftype(_VAL_)  eq 'GLOB'
+				     || $reftype(\_VAL_) eq 'GLOB' ) } },
+
+		 # Kludge Alert:
+		 #   Perl 5 has these; Perl 6 doesn't,
+		 #   but they're handy enough anyway
+		 Glob	=> { qual => qq{ $reftype(\_VAL_) eq 'GLOB'  } },
+		 GlobRef=> { qual => qq{ $reftype(_VAL_)  eq 'GLOB'  } },
 		);
 
 	for (keys %t) {
 	    my %init = %{ $t{$_} };
+
 	    delete $init{base};
+
+	    for ($init{qual}) {
+		next unless defined;
+		s/^\s+//;
+		s/\s+$//;
+		s{ [ ]* \n [ ]* }{ }xg;
+	    }
+
 	    $BASIC_TYPE{$_} = Perl6::Subs::Type->new( name => $_, %init );
 	}
 
@@ -187,6 +205,9 @@ my $CS_has_trait =
     sub has_trait;
     *has_trait = $CS_has_trait;
 
+    local $::RD_TRACE = $ENV{PERL6_SUBS_RD_TRACE};  # FIXME
+    local $::RD_HINT  = $ENV{PERL6_SUBS_RD_HINT};   # FIXME
+
     my $Parser = Parse::RecDescent->new(q{
 
 	{
@@ -201,12 +222,12 @@ my $CS_has_trait =
 	sub	: m{ sub \b | method \b }x
 		  ( /$word/ )(?)
 		  proto(?)
-		  traits
+		  sub_traits
 		  m{ (?= \\\{ | ; | \z ) }x
 		    {
 			my $sub = Perl6::Subs::Sub->new(
 							name   => $item[2][0],
-							traits => $item{traits},
+							traits => $item{sub_traits},
 							@{ $item{'proto(?)'}[0] },
 						       );
 
@@ -278,15 +299,15 @@ my $CS_has_trait =
 	named	: param[ qr/\+/, $s_var, $pcomma ]
 	slurpy	: param[ qr/\*/, $a_var, $pcomma ]
 
-	param	: typeq /$arg[0]/ /$arg[1]/ traits             /$arg[2]/
-			{ Perl6::Subs::Param->new( name   => $item[3],
-						   type   => $item{typeq},
-						   traits => $item{traits} ) }
+	param	: typeq /$arg[0]/ /$arg[1]/             traits /$arg[2]/
+		    { Perl6::Subs::Param->new( name   => $item[3],
+					       type   => $item{typeq},
+					       traits => $item{traits} ) }
 
-		|       /$arg[0]/ /$arg[1]/ traits /of\b/ type /$arg[2]/
-			{ Perl6::Subs::Param->new( name   => $item[2],
-						   type   => $item{type},
-						   traits => $item{traits} ) }
+		|       /$arg[0]/ /$arg[1]/ /of\b/ type traits /$arg[2]/
+		    { Perl6::Subs::Param->new( name   => $item[2],
+					       type   => $item{type},
+					       traits => $item{traits} ) }
 
 	var	: /$arg[0]/
 
@@ -319,12 +340,16 @@ my $CS_has_trait =
 	# 'traits' returns a hash ref to ( name => value ) trait pairs
 	# 'trait' returns an array ref to a [ name, value ] trait pair
 
-	traits	: trait(s?)	{ +{ map { @$_ } @{ $item[1] } } }
+	traits		: trait(s?)		{ +{ map { @$_ } @{ $item[1] } } }
+	sub_traits	: sub_trait(s? /,?/)	{ +{ map { @$_ } @{ $item[1] } } }
 
-	trait	: m{ \: | is \b }x /$word/ ( <perl_codeblock ()> )(?)
-		    { [ $item[2], Perl6::Subs::_inside($item[3][0]) ] }
-		| /returns\b/ <perl_codeblock ()>
-		    { [ $item[1], Perl6::Subs::_inside($item[2])    ] }
+	trait		: /is\b/ /$word/ trait_param(?) { [ $item[2], $item[3][0] ] }
+
+	sub_trait	: trait
+			| /:/ /$word/ trait_param(?)	{ [ $item[2], $item[3][0] ] }
+			| /returns\b/ trait_param	{ [ @item[1, 2] ] }
+
+	trait_param	: <perl_codeblock ()>		{ Perl6::Subs::_inside($item[1]) }
 
     });
 
@@ -333,6 +358,9 @@ my $CS_has_trait =
 	my ($class, $text) = @_;
 
 	my $orig_len = length($text);
+
+	local $::RD_TRACE = $ENV{PERL6_SUBS_RD_TRACE};  # FIXME
+	local $::RD_HINT  = $ENV{PERL6_SUBS_RD_HINT};   # FIXME
 
 	my $sub = $Parser->sub(\$text)
 	  or return;
@@ -470,7 +498,7 @@ my $CS_has_trait =
 	    }
 
 	    if ($ck{qual} || $ck{mustdef}) {
-		my $qual = join( '&&',
+		my $qual = join( ' and ',
 				 $ck{mustdef} ? 'defined(_VAL_)' : (),
 				 @{ $ck{qual} } );
 		if (!$ck{mustdef})
@@ -725,6 +753,16 @@ A hash reference, or undef.
 
 A code (subroutine) reference, or undef.
 
+=item B<Rule>:
+
+A regexp reference (qr//), or undef.
+
+=item B<IO>:
+
+An IO handle (e.g. C<*STDOUT{IO}>, or a glob (e.g. C<*STDOUT>), or a
+glob reference (e.g. C<\*STDOUT>), or undef.  Note that autovivified
+file handles work here, as they are references to blessed globs.
+
 =item B<Glob>:
 
 A glob value (e.g. C<*STDOUT>), or undef.
@@ -750,6 +788,20 @@ their sigils are stripped: "$y", "$m", "@tr", "@q", etc.  If you do
 so, Filter::Simple will be fooled into thinking large parts of your
 program are quoted strings, and large parts of your code may go
 unfiltered.
+
+=item Parameters are not aliased; C<is copy> is the default.
+
+In Perl 6, formal parameters are usually read-only aliases for the
+actual parameter values.  Parameters with the C<is rw> trait are
+writeable aliases, and parameters with the C<is copy> trait are
+writeable copies.
+
+Perl6::Subs defaults to C<is copy> semantics for efficiency reasons.
+Given that we're working on top of Perl 5, this is unlikely to change.
+Read-only aliasing is not a Perl 5 feature; to provide its semantics
+would currently require tying, and that's just too slow for us to make
+it the default.  On the other hand, support for C<is rw> may someday
+be provided via Lexical::Alias.
 
 =item No Perl 5 prototypes.
 
