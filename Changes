@@ -15,3 +15,10 @@ Revision history for Perl6-Subs
 	Document that C<is copy> is the default.
 	Separate rules for parameter and sub traits (the latter are more relaxed).
 	More carefully set debugging for Parse::RecDescent usage.
+
+0.04	04/06/2005
+	Lots more documentation.
+	The "code_only" rules for Filter::Simple are _too_ simple,
+	  so use "executable" instead (everything but pod and data).
+	Skip over block comments - don't search them for sub headers.
+	Make author-only debugging messages depend on $PERL6_SUBS_DEBUG > 1.
