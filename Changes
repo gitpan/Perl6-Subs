@@ -1,0 +1,10 @@
+Revision history for Perl6-Subs
+
+0.01    03/24/2005
+        First version, released on an unsuspecting world.
+
+0.02	03/24/2005
+	Support "required" attribute for named parameters, e.g. C< +$a is required >.
+	Add "HACKING" document.
+	Change license to LGPL.
+

@@ -1,0 +1,50 @@
+#!/usr/bin/perl -w
+# $Id: try-inits,v 1.2 2005/03/24 18:38:37 chip Exp $
+#
+# This script is a development aid.  It shows the initialization code
+# implied by various prototypes.  The prototypes here were interesting
+# new features when I wrote them, but are old and boring now.
+#
+
+use strict;
+use warnings;
+
+use blib;
+use Perl6::Subs ();
+
+sub try {
+   my ($decl) = @_;
+
+   print "\n";
+   print "$decl\n";
+
+   if (my $s = Perl6::Subs::Sub->new_from_decl($decl)) {
+       print "{\n";
+       print $s->init_code;
+       print "}\n";
+   }
+   else {
+       warn " ** Parse Error **\n";
+   }
+}
+
+sub trysub  { try "sub ($_[0])" }
+sub trymeth { try "method ($_[0])" }
+
+
+trysub q{};
+trysub q{ *@_ };
+trysub q{ $a };
+trysub q{ $a, *@_ };
+trysub q{ $a, $b };
+trysub q{ $a, $b, *@_ };
+trysub q{ $a, $b, $c };
+trysub q{ $a, $b, $c, *@_ };
+
+trysub q{ Int $foo, Str $bar, Str +$xyzzy, Str +$plugh };
+trysub q{ Int $foo, Str $bar, Str +$xyzzy is required, Str +$plugh };
+trysub q{ Int $foo, Str $bar, Str +$xyzzy is required, Str +$plugh is required };
+
+trymeth q{ $foo, Str $bar, Str +$xyzzy, Str +$plugh };
+trymeth q{ $me: $foo, Str ?$bar };
+trymeth q{ $me: $foo, *%args };

@@ -1,0 +1,61 @@
+Perl6-Subs
+
+This module implements much of the Perl 6 subroutine definition syntax
+for Perl 5 code.  It's a source filter, so it can be broken easily.
+
+Run 'perldoc lib/Perl6/Subs.pm' to read all about it.
+
+
+SAMPLE CODE
+
+   use Perl6::Subs;
+
+   {
+     package SomeClass;
+     method something             { $self->other }
+     method other       ( $me: )  { $me->yet_another( joe => 1 ) }
+     method yet_another ( +$joe ) { $joe ? $self->foo : $self->bar }
+   }
+
+   sub foo ( str $a, Int $b, SomeClass ?$c ) {
+      print $a, ":", $b + ($c ? $c->something : 0);
+   }
+
+
+WARNINGS YOU SHOULD NOT IGNORE
+
+  * Do not use parameter names that turn into Perl quoting operators
+    when their sigils are stripped: "$y", "$m", "@tr", "@q", etc.
+
+  * Avoid putting comments into subroutine declarations.
+
+  * Perl 6 prototypes do not imply Perl 5 prototypes.
+
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+    perl Makefile.PL
+    make
+    make test
+    make install
+
+
+COPYRIGHT AND LICENCE
+
+Copyright 2005 Chip Salzenberg and Health Market Science.
+
+This library is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or (at
+your option) any later version.
+
+This library is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this library; if not, write to the Free Software Foundation,
+Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA

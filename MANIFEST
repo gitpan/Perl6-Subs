@@ -1,0 +1,13 @@
+COPYING			GNU Lesser General Public License
+Changes			Change list
+HACKING			Instructions for the foolhardy
+MANIFEST		This file
+META.yml		Package metadata
+Makefile.PL		Makefile maker
+README			Who are you?  What do you want?
+lib/Perl6/Subs.pm	Teh Code
+scripts/try-inits	Helper script for hackers
+t/00-load.t		Standard test
+t/1-basics.t		Functional test of Perl6::Subs features
+t/pod-coverage.t	Standard test
+t/pod.t			Standard test

@@ -1,0 +1,66 @@
+$Id: HACKING,v 1.1 2005/03/24 18:04:52 chip Exp $
+
+If you want to parse and understand a Perl6-style sub declaration,
+but you don't want to actually filter the code, you can use some of
+the guts of Perl6::Subs to do it.
+
+HOWEVER, you should be aware that the interfaces described here are
+NOT SUPPORTED, and this documention is provided in the spirit of
+giving you enough rope to shoot yourself in the foot.
+
+That said, here's the basic pattern:
+
+    use Perl6::Subs ();    # note the () ... this means don't filter
+
+    # find declaration text --
+    #   everything up to (but not including) the '{' or ';'
+
+    my $decl = 'method foo ($me: Int $a, Foo $f where { $f })';
+
+    # instantiate Sub object from it
+
+    my $sub = Perl6::Subs::Sub->new_from_decl($decl)
+      or die "hey that's not a valid declaration";
+
+At this point, $sub is a Sub object (Perl6::Subs::Sub).
+
+(Note that the Sub object, as well as the below Param and Type
+objects, were created with Class::Struct, so you can read up on
+Class::Struct for usage details.)
+
+Sub object attributes are:
+
+  name       sub name (or undef if anonymous)
+  traits     hash of subroutine traits
+  p_inv      invocant Param object, e.g. $self (or undef)
+  p_pos      array of positional Param objects
+  p_pos_req  integer number of _required_ positional params
+  p_named    hash of named Param objects
+  p_slurpy   final slurpy Param object (or undef)
+
+Param (Perl6::Subs::Param) object attributes include:
+
+  name       e.g. '$self'
+  type       Type object reference
+  traits     hash of traits
+
+Type object attributes include:
+
+  name       type name, or undef for anonymous types
+  base       base type, or undef
+  where      "where" clause (only legal on anonymous types), or undef
+
+NOTE ON TRAITS: Trait hash values may be undef, but this does not mean
+the trait is missing!  Rather it means that the trait appeared without
+parentheses.  Use $obj->has_trait($trait) to detect trait presence, or
+use exists $object->traits->{$trait} if you want to type more.  :-)
+
+NOTE ON SUBTYPES: Types may be named or anonymous (subtypes).  To find
+a type name for an anonymous type, keep chasing the $type->base
+reference until you find a named type.  There will be one.  So, for
+example, to set $name to the name of type $type, use:
+
+   my $t = $type;
+   $t = $t->base until $t->name;
+   my $name = $t->name;
+
