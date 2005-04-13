@@ -1,4 +1,4 @@
-# $Id: Subs.pm,v 1.13 2005/04/06 20:44:03 chip Exp $
+# $Id: Subs.pm,v 1.16 2005/04/13 22:10:42 chip Exp $
 
 package Perl6::Subs;
 
@@ -8,11 +8,11 @@ Perl6::Subs - Define your subroutines in the Perl 6 style
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use strict;
 use warnings;
@@ -24,7 +24,6 @@ use Text::Balanced qw( extract_codeblock );
 
 ##use Params::Validate ();
 use Scalar::Util ();
-use Carp ();
 
 
 #----------------------------------------------------------------
@@ -400,15 +399,15 @@ my $CS_has_trait =
 
 	if (!%named && !$slurpy && $pos_req == @pos) {
 	    # min/max are the same
-	    $code .= qq{    Carp::croak "Wrong number of parameters (expected $pos_req)" if \@_ != $pos_req;\n};
+	    $code .= qq{    Perl6::Subs::_error "Parameter count is wrong (expected $pos_req)" if \@_ != $pos_req;\n};
 	}
 	else {
 	    # minimum and/or maximum differ
 
-	    $code .= qq{    Carp::croak "Too few parameters (min $pos_req)" if \@_ < $pos_req;\n};
+	    $code .= qq{    Perl6::Subs::_error "Too few parameters (min $pos_req)" if \@_ < $pos_req;\n};
 	    unless (%named or $slurpy) {
 		my $max = @pos;
-		$code .= qq{    Carp::croak "Too many parameters (max $max)" if \@_ > $max;\n};
+		$code .= qq{    Perl6::Subs::_error "Too many parameters (max $max)" if \@_ > $max;\n};
 	    }
 	}
 
@@ -458,7 +457,7 @@ my $CS_has_trait =
 		if (my @req_vars = grep { $named{$_}->has_trait('required') } @vars) {
 		    my @req_keys = map { /^\$(\w+)\z/ } @req_vars;
 
-		    my $croak = q{Carp::croak "Missing required named parameter '$_'"};
+		    my $croak = q{Perl6::Subs::_error "Required named parameter '$_' is missing"};
 		    $code .= qq{    exists \$$named_var\E{\$_} or $croak for qw( @req_keys );\n};
 		}
 
@@ -469,7 +468,7 @@ my $CS_has_trait =
 		    : qq{    my ( @{[ join ', ', @vars ]} ) = delete \@$named_var\E{qw( @keys )};\n};
 
 		# leftover named params are a bug unless the last param is *%slurpy
-		$code .= qq{    Carp::croak "Unknown named parameter(s): \@{[ sort keys \%$named_var ]}" if \%$named_var;\n}
+		$code .= qq{    Perl6::Subs::_error "Invalid named parameter(s) [\@{[ sort keys \%$named_var ]}]" if \%$named_var;\n}
 		  unless $slurpy;
 	    }
 	}
@@ -515,12 +514,12 @@ my $CS_has_trait =
 		  { $wanted = $type->base->name }
 		$wanted = $wanted ? (($wanted =~ /^[aeiuo]/i ? "an" : "a") . " $wanted") : "valid";
 
-		$code .= qq{    Carp::croak 'Parameter $name is not $wanted' unless $qual;\n};
+		$code .= qq{    Perl6::Subs::_error 'Parameter $name is not $wanted' unless $qual;\n};
 	    }
 
 	    if ($ck{where}) {
 		my $where = join ' && ', @{ $ck{where} };
-		$code .= qq{    $where or Carp::croak 'Parameter $name failed where{} test' for $name;\n};
+		$code .= qq{    $where or Perl6::Subs::_error 'Parameter $name failed a where{} test' for $name;\n};
 	    }
 	}
 
@@ -530,6 +529,20 @@ my $CS_has_trait =
 
 	$code;
     }
+}
+
+#
+# Perl6::Subs, again
+#
+
+sub _error {
+    my $sub = (caller(1))[3];
+    my ($c_file, $c_line) = (caller(2))[1, 2];
+
+    my $msg = join '', @_;
+    $msg .= " in call to $sub" unless $sub =~ /^\(/;
+    $msg .= " at $c_file line $c_line";
+    die "$msg\n";
 }
 
 
@@ -720,9 +733,9 @@ key/value pairs not explicitly given as named parameters.
 
 =head1 TYPES AND VALIDATION
 
-Perl6::Subs understands the following type names, and will validate
-that a declared parameter actually has the given type.  The validation
-code will throw an exception with C<Carp::croak> if validation fails.
+Perl6::Subs understands the following type names, and will generate
+code that validates at runtime that a declared parameter's value
+actually has the given type, and throws an exception if it fails.
 
 First, the fundamental Perl 6 types, which in Perl 6 will be unboxed
 (non-objects):

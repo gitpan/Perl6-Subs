@@ -1,12 +1,16 @@
 Revision history for Perl6-Subs
 
-0.01    03/24/2005
-        First version, released on an unsuspecting world.
+0.05	04/13/2005
+	Create private error function (Perl6::Subs::_error, but don't call it
+	yourself).  Change generated code to use it instead of Carp::croak
+	(which ignores intramodule calls and was therefore the Wrong Choice).
 
-0.02	03/24/2005
-	Support "required" attribute for named parameters, e.g. C< +$a is required >.
-	Add "HACKING" document.
-	Change license to LGPL.
+0.04	04/06/2005
+	Lots more documentation.
+	The "code_only" rules for Filter::Simple are _too_ simple,
+	  so use "executable" instead (everything but pod and data).
+	Skip over block comments - don't search them for sub headers.
+	Make author-only debugging messages depend on $PERL6_SUBS_DEBUG > 1.
 
 0.03	03/28/2005
 	Support new parameter types Rule and IO:
@@ -16,9 +20,10 @@ Revision history for Perl6-Subs
 	Separate rules for parameter and sub traits (the latter are more relaxed).
 	More carefully set debugging for Parse::RecDescent usage.
 
-0.04	04/06/2005
-	Lots more documentation.
-	The "code_only" rules for Filter::Simple are _too_ simple,
-	  so use "executable" instead (everything but pod and data).
-	Skip over block comments - don't search them for sub headers.
-	Make author-only debugging messages depend on $PERL6_SUBS_DEBUG > 1.
+0.02	03/24/2005
+	Support "required" attribute for named parameters, e.g. C< +$a is required >.
+	Add "HACKING" document.
+	Change license to LGPL.
+
+0.01    03/24/2005
+        First version, released on an unsuspecting world.
